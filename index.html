@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SilhouType</title>
+  <link rel="stylesheet" href="css/app.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Bebas+Neue&family=Pacifico&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Roboto:wght@400;700&family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="header">
+    <h1>SilhouType</h1>
+    <p class="tagline">Text along the curves of your image</p>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section class="panel">
+        <h2>Image</h2>
+        <label class="file-btn">
+          <input type="file" id="imageInput" accept="image/*" hidden>
+          Upload Image
+        </label>
+        <p id="uploadStatus" class="hint hidden"></p>
+        <button type="button" id="startOverBtn" class="btn btn-ghost" disabled>Start Over</button>
+      </section>
+
+      <section class="panel">
+        <h2>Path</h2>
+        <div class="btn-row">
+          <button type="button" id="autoTraceBtn" class="btn" disabled>Auto Trace</button>
+          <button type="button" id="manualTraceBtn" class="btn" disabled>Manual Trace</button>
+        </div>
+        <p id="traceHint" class="hint">Upload an image to begin tracing.</p>
+        <div id="manualControls" class="hidden">
+          <button type="button" id="finishTraceBtn" class="btn btn-sm">Finish Path</button>
+          <button type="button" id="undoPointBtn" class="btn btn-sm btn-ghost">Undo Point</button>
+          <button type="button" id="clearPathBtn" class="btn btn-sm btn-ghost">Clear Path</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Text</h2>
+        <label class="field" for="textInput">
+          <span>Content</span>
+        </label>
+        <input type="text" id="textInput" class="text-field" dir="ltr" lang="en" autocomplete="off" spellcheck="false" maxlength="120">
+        <p class="hint">Text preview appears on the path as you type (needs at least 2 trace points).</p>
+        <label class="field">
+          <span>Font</span>
+          <select id="fontSelect">
+            <option value="Bebas Neue">Bebas Neue</option>
+            <option value="Roboto">Roboto</option>
+            <option value="Oswald">Oswald</option>
+            <option value="Playfair Display">Playfair Display</option>
+            <option value="Pacifico">Pacifico</option>
+            <option value="Inter">Inter</option>
+          </select>
+        </label>
+        <label class="file-btn file-btn-sm">
+          <input type="file" id="fontInput" accept=".ttf,.otf,.woff,.woff2" hidden>
+          Upload Font
+        </label>
+        <span id="customFontLabel" class="hint hidden"></span>
+
+        <label class="field">
+          <span>Size <output id="fontSizeOut">48</output>px</span>
+          <input type="range" id="fontSize" min="12" max="200" value="48">
+        </label>
+        <label class="field">
+          <span>Weight</span>
+          <select id="fontWeight">
+            <option value="400">Regular (400)</option>
+            <option value="700">Bold (700)</option>
+          </select>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="fontItalic">
+          <span>Italic</span>
+        </label>
+        <label class="field">
+          <span>Letter spacing <output id="letterSpacingOut">0</output>px</span>
+          <input type="range" id="letterSpacing" min="-10" max="40" value="0">
+        </label>
+        <label class="field">
+          <span>Outline <output id="outlineWidthOut">0</output>px</span>
+          <input type="range" id="outlineWidth" min="0" max="20" value="0" step="0.5">
+        </label>
+        <button type="button" id="flipBtn" class="btn" disabled>Flip Text</button>
+      </section>
+
+      <section class="panel">
+        <h2>Export</h2>
+        <div class="btn-row">
+          <button type="button" id="exportSvgBtn" class="btn btn-primary" disabled>Export SVG</button>
+          <button type="button" id="exportStlBtn" class="btn btn-primary" disabled>Export STL</button>
+        </div>
+        <p class="hint">Export unlocks once text is visible on the path.</p>
+      </section>
+    </aside>
+
+    <div class="workspace">
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="mainCanvas"></canvas>
+        <svg id="textOverlay" class="text-overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+        <p id="emptyState" class="empty-state">Upload an image to get started</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (location.protocol === 'file:') {
+      document.addEventListener('DOMContentLoaded', function () {
+        var hint = document.getElementById('traceHint');
+        if (hint) {
+          hint.textContent = 'Open via a local server (npx serve .) — file:// blocks the app from loading.';
+          hint.style.color = '#ff6b6b';
+        }
+      });
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/earcut@2.2.4/dist/earcut.min.js"></script>
+  <script type="module" src="js/main.js?v=9"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "silhoutype",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "serve": "npx serve . -p 4173"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}
