@@ -13,8 +13,8 @@ test.describe('Image upload', () => {
     await page.locator('#imageInput').setInputFiles(testImage);
 
     await expect(page.locator('#emptyState')).toBeHidden();
-    await expect(page.locator('#traceHint')).toHaveText(/Auto Trace or Manual Trace/);
-    await expect(page.locator('#autoTraceBtn')).toBeEnabled();
+    await expect(page.locator('#traceHint')).toHaveText(/Trace Path/);
+    await expect(page.locator('#manualTraceBtn')).toBeEnabled();
     await expect(page.locator('#startOverBtn')).toBeEnabled();
     await expect(page.locator('#uploadStatus')).toContainText('Loaded');
 

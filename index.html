@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SilhouType — Curved Text Along Image Silhouettes</title>
-  <meta name="description" content="Free browser tool to place text along the curves of any image. Auto-trace silhouettes or draw paths manually, customize fonts, and export as SVG or 3D-printable STL.">
+  <meta name="description" content="Free browser tool to place text along the curves of any image. Draw paths manually, customize fonts, and export as SVG or 3D-printable STL.">
   <meta name="keywords" content="curved text, text on path, silhouette, SVG export, STL export, 3D printing, image tracing, typography">
   <meta name="author" content="TechJeeper">
   <meta name="robots" content="index, follow">
@@ -14,13 +14,13 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="SilhouType">
   <meta property="og:title" content="SilhouType — Curved Text Along Image Silhouettes">
-  <meta property="og:description" content="Place text along the curves of any image. Auto-trace or draw paths manually, then export as SVG or 3D-printable STL.">
+  <meta property="og:description" content="Place text along the curves of any image. Draw paths manually, then export as SVG or 3D-printable STL.">
   <meta property="og:url" content="https://techjeeper.github.io/SilhouType/">
   <meta property="og:locale" content="en_US">
 
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="SilhouType — Curved Text Along Image Silhouettes">
-  <meta name="twitter:description" content="Place text along the curves of any image. Auto-trace or draw paths manually, then export as SVG or 3D-printable STL.">
+  <meta name="twitter:description" content="Place text along the curves of any image. Draw paths manually, then export as SVG or 3D-printable STL.">
 
   <script type="application/ld+json">
   {
@@ -65,13 +65,9 @@
       <section class="panel">
         <h2>Path</h2>
         <div class="btn-row">
-          <button type="button" id="autoTraceBtn" class="btn" disabled>Auto Trace</button>
-          <button type="button" id="manualTraceBtn" class="btn" disabled>Manual Trace</button>
+          <button type="button" id="manualTraceBtn" class="btn" disabled>Trace Path</button>
         </div>
         <p id="traceHint" class="hint">Upload an image to begin tracing.</p>
-        <div id="autoControls" class="hidden">
-          <button type="button" id="cancelAutoBtn" class="btn btn-sm btn-ghost">Cancel</button>
-        </div>
         <div id="manualControls" class="hidden">
           <button type="button" id="finishTraceBtn" class="btn btn-sm">Finish Path</button>
           <button type="button" id="undoPointBtn" class="btn btn-sm btn-ghost">Undo Point</button>
@@ -161,6 +157,6 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/earcut@2.2.4/dist/earcut.min.js"></script>
-  <script type="module" src="js/main.js?v=10"></script>
+  <script type="module" src="js/main.js?v=11"></script>
 </body>
 </html>

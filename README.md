@@ -2,13 +2,12 @@
 
 Place text along the curves of an uploaded image, then export as SVG (transparent background) or a 1 mm thick STL.
 
-**Live demo:** enable GitHub Pages on this repo and open the published URL.
+**Live demo:** [https://techjeeper.github.io/SilhouType/](https://techjeeper.github.io/SilhouType/)
 
 ## Features
 
 - Upload any image (PNG, JPG, SVG, etc.)
-- **Auto Trace** — detects the dominant silhouette edge automatically
-- **Manual Trace** — click to place points; path is smoothed with a spline
+- **Trace Path** — click to place points; path is smoothed with a spline
 - **Flip** — toggle text right-side up or upside down along the path
 - Built-in fonts or upload your own `.ttf` / `.otf` / `.woff`
 - Font size, weight, italic, letter spacing, and outline controls
@@ -41,7 +40,7 @@ The included `.nojekyll` file ensures GitHub Pages serves the app as-is.
 ## Usage
 
 1. Upload an image.
-2. Click **Auto Trace**, then **click the line or edge** on the image you want to follow (a blue preview shows under your cursor).
+2. Click **Trace Path** and click along the desired curve, then **Finish Path**.
 3. Enter your text and adjust font settings.
 4. Use **Flip Text** if the text reads upside down.
 5. **Export SVG** or **Export STL**.
