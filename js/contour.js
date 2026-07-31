@@ -1,23 +1,177 @@
-/** Auto-detect the dominant silhouette contour from an image. */
+/** Auto-detect contours from an image; pick by clicking a line or shape. */
 
-import { catmullRomSpline, simplifyPoints } from './path.js';
+import { catmullRomSpline, simplifyPoints, dist } from './path.js';
 
-export function autoTraceContour(imageData, width, height) {
+export function prepareAutoTraceIndex(imageData, width, height) {
   const gray = toGrayscale(imageData);
   const threshold = otsuThreshold(gray);
+  const darkMask = gray.map((v) => (v < threshold ? 1 : 0));
+  const lightMask = gray.map((v) => (v >= threshold ? 1 : 0));
+  const contours = [
+    ...findAllContours(darkMask, width, height),
+    ...findAllContours(lightMask, width, height),
+  ];
+
+  return {
+    contours,
+    pickNearest(x, y) {
+      return pickNearestContour(contours, x, y);
+    },
+  };
+}
+
+export function autoTraceAtPoint(imageData, width, height, clickX, clickY) {
+  const gray = toGrayscale(imageData);
+  const threshold = otsuThreshold(gray);
+  const cx = Math.max(0, Math.min(width - 1, Math.round(clickX)));
+  const cy = Math.max(0, Math.min(height - 1, Math.round(clickY)));
 
   const darkMask = gray.map((v) => (v < threshold ? 1 : 0));
   const lightMask = gray.map((v) => (v >= threshold ? 1 : 0));
+  const pixelDark = gray[cy * width + cx] < threshold;
 
+  let boundary = traceComponentBoundary(pixelDark ? darkMask : lightMask, width, height, cx, cy);
+  if (boundary.length < 8) {
+    boundary = traceComponentBoundary(pixelDark ? lightMask : darkMask, width, height, cx, cy);
+  }
+  if (boundary.length < 8) {
+    const all = [
+      ...findAllContours(darkMask, width, height),
+      ...findAllContours(lightMask, width, height),
+    ];
+    boundary = pickNearestContour(all, clickX, clickY) ?? [];
+  }
+
+  return finishContour(boundary);
+}
+
+/** @deprecated Use autoTraceAtPoint after user click. */
+export function autoTraceContour(imageData, width, height) {
+  const gray = toGrayscale(imageData);
+  const threshold = otsuThreshold(gray);
+  const darkMask = gray.map((v) => (v < threshold ? 1 : 0));
+  const lightMask = gray.map((v) => (v >= threshold ? 1 : 0));
   const darkBoundary = traceOuterBoundary(darkMask, width, height);
   const lightBoundary = traceOuterBoundary(lightMask, width, height);
-
   const boundary = pickBestBoundary(darkBoundary, lightBoundary, width, height);
-  if (boundary.length < 8) return null;
+  return finishContour(boundary);
+}
 
+function finishContour(boundary) {
+  if (!boundary || boundary.length < 8) return null;
   const simplified = simplifyPoints(boundary, 3);
   const smoothed = catmullRomSpline(simplified, 8, false);
   return smoothed.length >= 2 ? smoothed : null;
+}
+
+function traceComponentBoundary(mask, width, height, sx, sy) {
+  let x = sx;
+  let y = sy;
+
+  if (mask[y * width + x] !== 1) {
+    const nearest = findNearestForeground(mask, width, height, sx, sy, 40);
+    if (!nearest) return [];
+    x = nearest.x;
+    y = nearest.y;
+  }
+
+  const componentMask = new Uint8Array(width * height);
+  floodFillComponent(mask, componentMask, x, y, width, height);
+  return traceOuterBoundary(componentMask, width, height);
+}
+
+function findAllContours(mask, width, height) {
+  const visited = new Uint8Array(width * height);
+  const contours = [];
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (mask[idx] !== 1 || visited[idx]) continue;
+
+      const componentMask = new Uint8Array(width * height);
+      floodFillComponent(mask, componentMask, x, y, width, height, visited);
+      const area = componentMask.reduce((sum, v) => sum + v, 0);
+      if (area < 24) continue;
+
+      const boundary = traceOuterBoundary(componentMask, width, height);
+      if (boundary.length >= 8) contours.push(boundary);
+    }
+  }
+
+  return contours;
+}
+
+function pickNearestContour(contours, x, y) {
+  if (contours.length === 0) return null;
+  let best = null;
+  let bestDist = Infinity;
+
+  for (const contour of contours) {
+    const d = distanceToContour(x, y, contour);
+    if (d < bestDist) {
+      bestDist = d;
+      best = contour;
+    }
+  }
+
+  return best;
+}
+
+function distanceToContour(x, y, contour) {
+  let min = Infinity;
+  for (let i = 0; i < contour.length - 1; i++) {
+    min = Math.min(min, distToSegment(x, y, contour[i], contour[i + 1]));
+  }
+  return min;
+}
+
+function distToSegment(px, py, a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return dist({ x: px, y: py }, a);
+  let t = ((px - a.x) * dx + (py - a.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return dist(
+    { x: px, y: py },
+    { x: a.x + t * dx, y: a.y + t * dy },
+  );
+}
+
+function findNearestForeground(mask, width, height, sx, sy, maxRadius) {
+  for (let r = 1; r <= maxRadius; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+        const x = sx + dx;
+        const y = sy + dy;
+        if (x >= 0 && x < width && y >= 0 && y < height && mask[y * width + x] === 1) {
+          return { x, y };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function floodFillComponent(source, dest, sx, sy, width, height, visited = null) {
+  const stack = [[sx, sy]];
+  const startIdx = sy * width + sx;
+
+  if (source[startIdx] !== 1) return;
+
+  while (stack.length > 0) {
+    const [x, y] = stack.pop();
+    const idx = y * width + x;
+    if (x < 0 || x >= width || y < 0 || y >= height) continue;
+    if (source[idx] !== 1 || dest[idx] === 1) continue;
+
+    dest[idx] = 1;
+    if (visited) visited[idx] = 1;
+
+    stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
 }
 
 function pickBestBoundary(a, b, width, height) {

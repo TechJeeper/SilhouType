@@ -41,7 +41,7 @@ The included `.nojekyll` file ensures GitHub Pages serves the app as-is.
 ## Usage
 
 1. Upload an image.
-2. Click **Auto Trace** (or **Manual Trace** and click along the desired curve, then **Finish Path**).
+2. Click **Auto Trace**, then **click the line or edge** on the image you want to follow (a blue preview shows under your cursor).
 3. Enter your text and adjust font settings.
 4. Use **Flip Text** if the text reads upside down.
 5. **Export SVG** or **Export STL**.

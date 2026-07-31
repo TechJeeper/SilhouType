@@ -1,6 +1,6 @@
-import { autoTraceContour } from './contour.js';
+import { autoTraceAtPoint, prepareAutoTraceIndex } from './contour.js';
 import { loadFont, loadFontFromFile } from './fonts.js';
-import { catmullRomSpline, pointsToSvgPath } from './path.js';
+import { catmullRomSpline, simplifyPoints } from './path.js';
 import { layoutTextOnPath, glyphsToSvgElements } from './textPath.js';
 import { exportSvg, exportStl, downloadBlob } from './export.js';
 import { initTextInput, getTextValue } from './textInput.js';
@@ -13,6 +13,9 @@ const state = {
   rawPoints: [],
   pathPoints: null,
   mode: null,
+  traceImageData: null,
+  traceContours: null,
+  hoverContour: null,
   font: null,
   fontKey: 'Bebas Neue-400',
   customFontKey: null,
@@ -44,6 +47,8 @@ const els = {
   undoPointBtn: document.getElementById('undoPointBtn'),
   clearPathBtn: document.getElementById('clearPathBtn'),
   manualControls: document.getElementById('manualControls'),
+  autoControls: document.getElementById('autoControls'),
+  cancelAutoBtn: document.getElementById('cancelAutoBtn'),
   traceHint: document.getElementById('traceHint'),
   flipBtn: document.getElementById('flipBtn'),
   exportSvgBtn: document.getElementById('exportSvgBtn'),
@@ -56,6 +61,7 @@ const els = {
 
 const ctx = els.canvas.getContext('2d');
 let previewTimer = null;
+let hoverTimer = null;
 
 init();
 
@@ -97,8 +103,9 @@ function bindEvents() {
     schedulePreview();
   });
 
-  els.autoTraceBtn.addEventListener('click', runAutoTrace);
+  els.autoTraceBtn.addEventListener('click', startAutoTrace);
   els.manualTraceBtn.addEventListener('click', startManualTrace);
+  els.cancelAutoBtn.addEventListener('click', cancelAutoTrace);
   els.finishTraceBtn.addEventListener('click', finishManualTrace);
   els.undoPointBtn.addEventListener('click', undoPoint);
   els.clearPathBtn.addEventListener('click', clearPath);
@@ -134,7 +141,10 @@ function onImageUpload(e) {
     state.rawPoints = [];
     state.pathPoints = null;
     state.mode = null;
+    state.traceImageData = null;
+    state.hoverContour = null;
     els.manualControls.classList.add('hidden');
+    els.autoControls.classList.add('hidden');
     els.traceHint.textContent = 'Use Auto Trace or Manual Trace to define a path.';
     updateButtonStates();
     els.emptyState.classList.add('hidden');
@@ -186,35 +196,82 @@ function getPreviewPathPoints() {
   return null;
 }
 
-function runAutoTrace() {
+function startAutoTrace() {
   if (!state.image) return;
-  els.traceHint.textContent = 'Tracing silhouette…';
 
   ctx.drawImage(state.image, 0, 0, state.canvasW, state.canvasH);
-  const imageData = ctx.getImageData(0, 0, state.canvasW, state.canvasH);
-  const contour = autoTraceContour(imageData.data, state.canvasW, state.canvasH);
-
-  state.mode = null;
+  state.traceImageData = ctx.getImageData(0, 0, state.canvasW, state.canvasH);
+  state.traceContours = prepareAutoTraceIndex(
+    state.traceImageData.data,
+    state.canvasW,
+    state.canvasH,
+  );
+  state.mode = 'auto-pick';
+  state.pathPoints = null;
+  state.rawPoints = [];
+  state.hoverContour = null;
   els.manualControls.classList.add('hidden');
+  els.autoControls.classList.remove('hidden');
+  els.traceHint.textContent = 'Click the line or edge on the image you want to trace.';
+  els.canvas.style.cursor = 'crosshair';
+  updateButtonStates();
+  redraw();
+  renderPreview();
+}
 
-  if (!contour) {
-    els.traceHint.textContent = 'Auto trace failed — try Manual Trace instead.';
-    return;
-  }
+function cancelAutoTrace() {
+  state.mode = null;
+  state.traceImageData = null;
+  state.traceContours = null;
+  state.hoverContour = null;
+  els.autoControls.classList.add('hidden');
+  els.canvas.style.cursor = '';
+  els.traceHint.textContent = 'Use Auto Trace or Manual Trace to define a path.';
+  redraw();
+}
 
+function applyAutoContour(contour) {
+  state.mode = null;
+  state.traceImageData = null;
+  state.traceContours = null;
+  state.hoverContour = null;
   state.pathPoints = contour;
   state.rawPoints = [];
+  els.autoControls.classList.add('hidden');
+  els.manualControls.classList.add('hidden');
+  els.canvas.style.cursor = '';
   els.traceHint.textContent = 'Path detected. Edit text and export when ready.';
   updateButtonStates();
   redraw();
   renderPreview();
 }
 
+function pickContourAt(pt) {
+  if (!state.traceImageData) return null;
+  return autoTraceAtPoint(
+    state.traceImageData.data,
+    state.canvasW,
+    state.canvasH,
+    pt.x,
+    pt.y,
+  );
+}
+
+function previewContourAt(index, x, y) {
+  if (!index?.contours?.length) return null;
+  const raw = index.pickNearest(x, y);
+  if (!raw) return null;
+  return catmullRomSpline(simplifyPoints(raw, 4), 6, false);
+}
+
 function startManualTrace() {
   if (!state.image) return;
   state.mode = 'manual';
+  state.traceImageData = null;
+  state.hoverContour = null;
   state.rawPoints = [];
   state.pathPoints = null;
+  els.autoControls.classList.add('hidden');
   els.manualControls.classList.remove('hidden');
   els.traceHint.textContent = 'Click to add points along the curve. Text preview updates as you go.';
   updateButtonStates();
@@ -252,14 +309,37 @@ function clearPath() {
 }
 
 function onCanvasClick(e) {
-  if (state.mode !== 'manual') return;
   const pt = canvasPointFromEvent(e);
+
+  if (state.mode === 'auto-pick') {
+    const contour = pickContourAt(pt);
+    if (!contour) {
+      els.traceHint.textContent = 'Could not trace that line — try clicking directly on the edge.';
+      return;
+    }
+    applyAutoContour(contour);
+    return;
+  }
+
+  if (state.mode !== 'manual') return;
   state.rawPoints.push(pt);
   redraw();
   schedulePreview();
 }
 
 function onCanvasMove(e) {
+  if (state.mode === 'auto-pick') {
+    els.canvas.style.cursor = 'crosshair';
+    const pt = canvasPointFromEvent(e);
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => {
+      hoverTimer = null;
+      state.hoverContour = previewContourAt(state.traceContours, pt.x, pt.y);
+      redraw();
+    }, 60);
+    return;
+  }
+
   if (state.mode !== 'manual') return;
   els.canvas.style.cursor = 'crosshair';
 }
@@ -368,6 +448,10 @@ function redraw() {
     drawPath(state.pathPoints, '#6c8cff', 2);
   }
 
+  if (state.mode === 'auto-pick' && state.hoverContour?.length > 1) {
+    drawPath(state.hoverContour, 'rgba(108, 140, 255, 0.85)', 2.5);
+  }
+
   if (state.mode === 'manual' && state.rawPoints.length > 0) {
     if (state.rawPoints.length > 1) {
       drawPath(state.rawPoints, 'rgba(108, 140, 255, 0.5)', 1.5, false);
@@ -431,6 +515,9 @@ function startOver() {
     rawPoints: [],
     pathPoints: null,
     mode: null,
+    traceImageData: null,
+    traceContours: null,
+    hoverContour: null,
     glyphs: [],
     flipped: false,
     customFontKey: null,
@@ -443,7 +530,9 @@ function startOver() {
   els.uploadStatus.classList.add('hidden');
   els.uploadStatus.textContent = '';
   els.manualControls.classList.add('hidden');
+  els.autoControls.classList.add('hidden');
   els.customFontLabel.classList.add('hidden');
+  els.canvas.style.cursor = '';
   els.traceHint.textContent = 'Upload an image to begin tracing.';
   els.flipBtn.textContent = 'Flip Text';
   els.imageInput.value = '';
